@@ -1,9 +1,17 @@
 import numpy as np  # for efficient matrix and vector operations
 
 
+def relu(x):
+    return np.piecewise(x, [x < 0, x >= 0], [lambda x: 0, lambda x: x])
+
+
+def sigmoid(x):
+    return 2 / (1 + 2**(-x)) - 1
+
+
 class RNN:
 
-    def __init__(self, input_size, state_sizes, output_size):
+    def __init__(self, input_size, state_sizes, output_size, activation_function=relu):
         self.all_sizes = [input_size] + state_sizes + [output_size]
         self.layer_sizes = state_sizes + [output_size]
 
@@ -19,12 +27,18 @@ class RNN:
             0, 0.01, (self.all_sizes[i+1], self.all_sizes[i])) for i in range(0, self.all_sizes.__len__() - 1)]
 
         self.recurrent_weights = [np.random.normal(
-            0, 0.01, (i, i)) for i in state_sizes]
+            0, 0.01, (i, i))+1 for i in state_sizes]
 
-    def set_input(self, input_vector):
+        self.activation_function = activation_function
+
+    def reset_state(self):
+        def set_to_zero(x):
+            return 0
+        for layer in self.values:
+            set_to_zero(layer)
+
+    def perform_timestep(self, input_vector):
         self.values[0] = input_vector
-
-    def perform_timestep(self):
         for i in range(1, self.all_sizes.__len__()):
             # calculate weighted sum in from previous layer or input
             new_vals = self.biases[i-1] + \
@@ -33,11 +47,10 @@ class RNN:
             if i < len(self.layer_sizes)-1:
                 new_vals += np.dot(self.recurrent_weights[i-1], self.values[i])
             # apply activation function
-            self.values[i] = sigmoid(new_vals)
+            self.values[i] = self.activation_function(new_vals)
 
-
-def sigmoid(x):
-    return 1 / (1 + 2**(-x))
+    def predict(self):
+        return self.values[len(self.values)-1]
 
 
 if __name__ == '__main__':
