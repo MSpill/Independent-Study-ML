@@ -13,14 +13,17 @@ class RNN:
         self.state = np.zeros((state_size, 1))
         self.output = np.zeros((output_size, 1))
 
-        # bias vectors (todo: initialize with gaussian distro)
-        self.state_biases = np.zeros((state_size, 1))
-        self.output_biases = np.zeros((output_size, 1))
+        # bias vectors
+        self.state_biases = np.random.normal(0, 0.01, (state_size, 1))
+        self.output_biases = np.random.normal(0, 0.01, (output_size, 1))
 
-        # weight matrices (todo: initialize with gaussian distro)
-        self.input_to_state = np.zeros((state_size, input_size))
-        self.state_to_state = np.zeros((state_size, state_size))
-        self.state_to_output = np.zeros((output_size, state_size))
+        # weight matrices
+        self.input_to_state = np.random.normal(
+            0, 0.01, (state_size, input_size))
+        self.state_to_state = np.random.normal(
+            0, 0.01, (state_size, state_size))
+        self.state_to_output = np.random.normal(
+            0, 0.01, (output_size, state_size))
 
     def set_input(self, input_vector):
         self.inputs = input_vector
@@ -50,6 +53,6 @@ def sigmoid(x):
 myRnn = RNN(10, 5, 7)
 myRnn.perform_timestep()
 myRnn.calculate_output()
-print(myRnn.inputs)
+print(myRnn.state_to_state)
 print(myRnn.state)
 print(myRnn.output)
