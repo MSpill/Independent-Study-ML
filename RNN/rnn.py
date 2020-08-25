@@ -27,15 +27,13 @@ class RNN:
             0, 0.01, (self.all_sizes[i+1], self.all_sizes[i])) for i in range(0, self.all_sizes.__len__() - 1)]
 
         self.recurrent_weights = [np.random.normal(
-            0, 0.01, (i, i))+1 for i in state_sizes]
+            0, 0.01, (i, i)) for i in state_sizes]
 
         self.activation_function = activation_function
 
     def reset_state(self):
-        def set_to_zero(x):
-            return 0
         for layer in self.values:
-            set_to_zero(layer)
+            layer = layer * 0
 
     def perform_timestep(self, input_vector):
         self.values[0] = input_vector
