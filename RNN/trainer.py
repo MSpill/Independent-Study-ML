@@ -16,6 +16,7 @@ class RNNTrainer:
         # an epoch is when you've gone through as many example inputs as there are in the training set
         curr_epoch = 0.0
         while curr_epoch < num_epochs:
+            self.rnn.reset_state()
             curr_epoch += self.batch_size / len(self.inputs)
             start_index = random.randint(0, len(self.inputs) - self.batch_size)
             predictions = []
@@ -28,10 +29,21 @@ class RNNTrainer:
                 predictions.append(self.rnn.predict())
                 states.append(self.rnn.values[1:-1])
 
+            # perform backprop through time
+            squared_error = 0.0
+            for t in range(0, len(predictions)):
+                # print("predict: {0} target: {1}".format(
+                #    predictions[t], self.outputs[start_index+t]))
+                output_delta = predictions[t] - self.outputs[start_index+t]
+                squared_error += np.sum(output_delta ** 2) / \
+                    len(self.outputs[start_index+t]) / len(predictions)
+
+            print("Squared error: {}".format(squared_error))
+
 
 if __name__ == '__main__':
-    inputs = [0, 1, 0, 1] * 20000
-    outputs = [1, 0, 1, 0] * 20000
+    inputs = [[0], [1], [0], [1]] * 20000
+    outputs = [[1], [0], [1], [0]] * 20000
     my_rnn = rnn.RNN(1, [2, 3], 1, activation_function=rnn.relu)
     # for i in range(10):
     #    my_rnn.perform_timestep(1)

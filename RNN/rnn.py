@@ -36,7 +36,7 @@ class RNN:
             layer = layer * 0
 
     def perform_timestep(self, input_vector):
-        self.values[0] = input_vector
+        self.values[0] = [input_vector]  # makes it a (x, 1) shape matrix
         for i in range(1, self.all_sizes.__len__()):
             # calculate weighted sum in from previous layer or input
             new_vals = self.biases[i-1] + \
@@ -52,6 +52,9 @@ class RNN:
 
 
 if __name__ == '__main__':
-    myRnn = RNN(10, [5, 4], 7)
-    myRnn.perform_timestep()
-    print(myRnn.values)
+    # myRnn = RNN(2, [3, 2], 3)
+    # myRnn.perform_timestep([0.5, 0.4])
+    # print(myRnn.values)
+    matrix1 = np.ones((2, 1))
+    matrix2 = np.ones((1, 1))
+    print(np.dot(matrix1, [[0]]).shape)
