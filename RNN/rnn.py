@@ -53,10 +53,6 @@ class RNN:
     def predict(self):
         return self.values[len(self.values)-1]
 
-    def predict(self, input_vector):
-        self.perform_timestep(input_vector)
-        return self.predict()
-
 
 if __name__ == '__main__':
     # myRnn = RNN(2, [3, 2], 3)

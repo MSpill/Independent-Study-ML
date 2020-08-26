@@ -36,17 +36,50 @@ class RNNTrainer:
                 self.rnn.perform_timestep(self.inputs[start_index+step])
                 predictions.append(self.rnn.predict())
                 states.append(self.rnn.values[1:-1])
-                pre_activations.append(self.rnn.pre_activations[1:-1])
+                pre_activations.append(self.rnn.pre_activations[1:])
 
             # perform backprop through time
+
             squared_error = 0.0
+            # place to store derivatives, I'm calling them derivs for short
+            feedforward_derivs = [w * 0 for w in self.rnn.forward_weights]
+            recurrent_derivs = [w * 0 for w in self.rnn.recurrent_weights]
+            bias_derivs = [b * 0 for b in self.rnn.biases]
             for t in range(0, len(predictions)):
-                output_delta = predictions[t] - self.outputs[start_index+t]
-                squared_error += np.sum(output_delta ** 2) / \
+
+                # this stores the derivatives of error w/ respect to neuron outputs
+                # it will be the info used to calculate derivatives for weights and biases
+                # we only need to store the most recently calculated timestep's deltas
+                state_derivs = [self.rnn.values[i] *
+                                0 for i in range(1, len(self.rnn.values)-1)]
+
+                output_error = predictions[t] - self.outputs[start_index+t]
+                squared_error += np.sum(output_error ** 2) / \
                     len(self.outputs[start_index+t]) / len(predictions)
 
-                # start from this timestep's output and work back to initial state
+                # calculate derivs for state-to-output weights and output biases
+                # these only need to be calculated once, they aren't used earlier
+                output_deriv = output_error * \
+                    derivative(self.rnn.activation_function)(
+                        pre_activations[t][-1])
+                bias_derivs[-1] += output_deriv
+                feedforward_derivs[-1] += np.dot(predictions[t],
+                                                 np.transpose(states[t][-1]))
 
+                # now calculate derivs for other feedforward/recurrent weights and biases
+                # they were used more than once to produce this timestep's predict, so we need
+                # to backpropagate through time to sum up all the derivatives
+
+            # finally, use the partial derivatives to update the weights and biases
+            mult_factor = self.learning_rate/len(self.inputs)
+            for i in range(0, len(self.rnn.forward_weights)):
+                self.rnn.forward_weights[i] -= feedforward_derivs[i] * mult_factor
+            for i in range(0, len(self.rnn.recurrent_weights)):
+                self.rnn.recurrent_weights[i] -= recurrent_derivs[i] * mult_factor
+            for i in range(0, len(self.rnn.biases)):
+                self.rnn.biases[i] -= bias_derivs[i] * mult_factor
+
+            # Print info to track training progress
             print("Avg squared error: {}".format(squared_error))
 
 
@@ -57,5 +90,6 @@ if __name__ == '__main__':
     # for i in range(10):
     #    my_rnn.perform_timestep(1)
     #    print(my_rnn.predict())
-    rnn_trainer = RNNTrainer(my_rnn, inputs, outputs, batch_size=200)
+    rnn_trainer = RNNTrainer(my_rnn, inputs, outputs,
+                             batch_size=100, learning_rate=0.5)
     rnn_trainer.train(num_epochs=1)
