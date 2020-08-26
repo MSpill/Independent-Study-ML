@@ -3,6 +3,13 @@ import random
 import rnn
 
 
+def derivative(activation_function):
+    if activation_function is rnn.relu:
+        return lambda x: np.piecewise(x, [x < 0, x >= 0], [lambda a: 0, lambda a: 1])
+    elif activation_function is rnn.sigmoid:
+        return lambda x: 2 * (2.71 ** (-x)) / ((1 + 2.71 ** (-x)) ** 2)
+
+
 class RNNTrainer:
 
     def __init__(self, rnn, inputs, outputs, learning_rate=0.01, batch_size=200):
@@ -21,6 +28,7 @@ class RNNTrainer:
             start_index = random.randint(0, len(self.inputs) - self.batch_size)
             predictions = []
             states = []
+            pre_activations = []
             # feed in batch_size inputs and record all the predictions and internal states
             step = 0
             while step < self.batch_size:
@@ -28,17 +36,18 @@ class RNNTrainer:
                 self.rnn.perform_timestep(self.inputs[start_index+step])
                 predictions.append(self.rnn.predict())
                 states.append(self.rnn.values[1:-1])
+                pre_activations.append(self.rnn.pre_activations[1:-1])
 
             # perform backprop through time
             squared_error = 0.0
             for t in range(0, len(predictions)):
-                # print("predict: {0} target: {1}".format(
-                #    predictions[t], self.outputs[start_index+t]))
                 output_delta = predictions[t] - self.outputs[start_index+t]
                 squared_error += np.sum(output_delta ** 2) / \
                     len(self.outputs[start_index+t]) / len(predictions)
 
-            print("Squared error: {}".format(squared_error))
+                # start from this timestep's output and work back to initial state
+
+            print("Avg squared error: {}".format(squared_error))
 
 
 if __name__ == '__main__':

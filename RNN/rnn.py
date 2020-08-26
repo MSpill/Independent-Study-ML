@@ -2,7 +2,7 @@ import numpy as np  # for efficient matrix and vector operations
 
 
 def relu(x):
-    return np.piecewise(x, [x < 0, x >= 0], [lambda x: 0, lambda x: x])
+    return np.piecewise(x, [x < 0, x >= 0], [lambda a: 0, lambda a: a])
 
 
 def sigmoid(x):
@@ -17,17 +17,19 @@ class RNN:
 
         # first in list will be inputs, last will be outputs, between is hidden state
         self.values = [np.zeros((i, 1)) for i in self.all_sizes]
+        # (for training) store what the input to each layer was before applying activ. function
+        self.pre_activations = [np.zeros((i, 1)) for i in self.all_sizes]
 
         # bias vectors
         self.biases = [np.random.normal(
-            0, 0.01, (i, 1)) for i in self.layer_sizes]
+            0, 0.02, (i, 1)) for i in self.layer_sizes]
 
         # weight matrices
         self.forward_weights = [np.random.normal(
-            0, 0.01, (self.all_sizes[i+1], self.all_sizes[i])) for i in range(0, self.all_sizes.__len__() - 1)]
+            0, 0.02, (self.all_sizes[i+1], self.all_sizes[i])) for i in range(0, self.all_sizes.__len__() - 1)]
 
         self.recurrent_weights = [np.random.normal(
-            0, 0.01, (i, i)) for i in state_sizes]
+            0, 0.02, (i, i)) for i in state_sizes]
 
         self.activation_function = activation_function
 
@@ -45,6 +47,7 @@ class RNN:
             if i < len(self.layer_sizes)-1:
                 new_vals += np.dot(self.recurrent_weights[i-1], self.values[i])
             # apply activation function
+            self.pre_activations[i] = new_vals
             self.values[i] = self.activation_function(new_vals)
 
     def predict(self):
