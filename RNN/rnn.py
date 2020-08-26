@@ -6,7 +6,7 @@ def relu(x):
 
 
 def sigmoid(x):
-    return 2 / (1 + 2**(-x)) - 1
+    return 2 / (1 + 2.71**(-x)) - 1
 
 
 class RNN:
@@ -52,6 +52,10 @@ class RNN:
 
     def predict(self):
         return self.values[len(self.values)-1]
+
+    def predict(self, input_vector):
+        self.perform_timestep(input_vector)
+        return self.predict()
 
 
 if __name__ == '__main__':

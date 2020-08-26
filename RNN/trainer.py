@@ -58,4 +58,4 @@ if __name__ == '__main__':
     #    my_rnn.perform_timestep(1)
     #    print(my_rnn.predict())
     rnn_trainer = RNNTrainer(my_rnn, inputs, outputs, batch_size=200)
-    rnn_trainer.train(1)
+    rnn_trainer.train(num_epochs=1)
