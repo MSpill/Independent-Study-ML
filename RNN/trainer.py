@@ -6,6 +6,8 @@ import rnn
 def derivative(activation_function):
     if activation_function is rnn.relu:
         return lambda x: np.piecewise(x, [x < 0, x >= 0], [lambda a: 0, lambda a: 1])
+    elif activation_function is rnn.leaky_relu:
+        return lambda x: np.piecewise(x, [x < 0, x >= 0], [lambda a: -0.01, lambda a: 1])
     elif activation_function is rnn.sigmoid:
         return lambda x: 2 * (2.71 ** (-x)) / ((1 + 2.71 ** (-x)) ** 2)
 
@@ -24,7 +26,7 @@ class RNNTrainer:
         curr_epoch = 0.0
         while curr_epoch < num_epochs:
             self.rnn.reset_state()
-            curr_epoch += self.batch_size / len(self.inputs)
+            curr_epoch += (self.batch_size+0.0) / len(self.inputs)
             start_index = random.randint(0, len(self.inputs) - self.batch_size)
             predictions = []
             states = []
@@ -32,11 +34,11 @@ class RNNTrainer:
             # feed in batch_size inputs and record all the predictions and internal states
             step = 0
             while step < self.batch_size:
-                step += 1
                 self.rnn.perform_timestep(self.inputs[start_index+step])
                 predictions.append(self.rnn.predict())
                 states.append(self.rnn.values[1:-1])
                 pre_activations.append(self.rnn.pre_activations[1:])
+                step += 1
 
             # perform backprop through time
 
@@ -63,7 +65,7 @@ class RNNTrainer:
                     derivative(self.rnn.activation_function)(
                         pre_activations[t][-1])
                 bias_derivs[-1] += output_deriv
-                feedforward_derivs[-1] += np.dot(predictions[t],
+                feedforward_derivs[-1] += np.dot(output_deriv,
                                                  np.transpose(states[t][-1]))
 
                 # now calculate derivs for other feedforward/recurrent weights and biases
@@ -71,7 +73,7 @@ class RNNTrainer:
                 # to backpropagate through time to sum up all the derivatives
 
             # finally, use the partial derivatives to update the weights and biases
-            mult_factor = self.learning_rate/len(self.inputs)
+            mult_factor = self.learning_rate/self.batch_size
             for i in range(0, len(self.rnn.forward_weights)):
                 self.rnn.forward_weights[i] -= feedforward_derivs[i] * mult_factor
             for i in range(0, len(self.rnn.recurrent_weights)):
@@ -86,10 +88,11 @@ class RNNTrainer:
 if __name__ == '__main__':
     inputs = [[0], [1], [0], [1]] * 20000
     outputs = [[1], [0], [1], [0]] * 20000
-    my_rnn = rnn.RNN(1, [2, 3], 1, activation_function=rnn.relu)
-    # for i in range(10):
-    #    my_rnn.perform_timestep(1)
-    #    print(my_rnn.predict())
+    my_rnn = rnn.RNN(1, [2, 3], 1, activation_function=rnn.leaky_relu)
     rnn_trainer = RNNTrainer(my_rnn, inputs, outputs,
-                             batch_size=100, learning_rate=0.5)
-    rnn_trainer.train(num_epochs=1)
+                             batch_size=10, learning_rate=0.3)
+    rnn_trainer.train(num_epochs=0.3)
+
+    for i in range(100):
+        my_rnn.perform_timestep(inputs[i])
+        print(my_rnn.predict())
