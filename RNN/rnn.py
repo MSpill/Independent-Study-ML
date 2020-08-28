@@ -10,7 +10,7 @@ def leaky_relu(x):
 
 
 def sigmoid(x):
-    return 2 / (1 + 2.71**(-x)) - 1
+    return 1 / (1 + 2.71**(-x))
 
 
 class RNN:
@@ -22,18 +22,18 @@ class RNN:
         # first in list will be inputs, last will be outputs, between is hidden state
         self.values = [np.zeros((i, 1)) for i in self.all_sizes]
         # (for training) store what the input to each layer was before applying activ. function
-        self.pre_activations = [np.zeros((i, 1)) for i in self.all_sizes]
+        self.pre_activations = [np.zeros((i, 1)) for i in self.layer_sizes]
 
         # bias vectors
         self.biases = [np.random.normal(
-            0, 0.2, (i, 1)) for i in self.layer_sizes]
+            0, 0.01, (i, 1)) for i in self.layer_sizes]
 
         # weight matrices
         self.forward_weights = [np.random.normal(
-            0, 0.2, (self.all_sizes[i+1], self.all_sizes[i])) for i in range(0, self.all_sizes.__len__() - 1)]
+            0, 0.01, (self.all_sizes[i+1], self.all_sizes[i])) for i in range(0, self.all_sizes.__len__() - 1)]
 
         self.recurrent_weights = [np.random.normal(
-            0, 0.2, (i, i)) for i in state_sizes]
+            0, 0.00001, (i, i)) for i in state_sizes]
 
         self.activation_function = activation_function
 
@@ -42,16 +42,17 @@ class RNN:
             layer = layer * 0
 
     def perform_timestep(self, input_vector):
-        self.values[0] = [input_vector]  # makes it a (x, 1) shape matrix
+        # makes it a (x, 1) shape matrix
+        self.values[0] = np.transpose(np.array([input_vector]))
         for i in range(1, self.all_sizes.__len__()):
             # calculate weighted sum in from previous layer or input
             new_vals = self.biases[i-1] + \
                 np.dot(self.forward_weights[i-1], self.values[i-1])
             # if this is a hidden layer, add the recurrent signal from its previous state
-            if i < len(self.layer_sizes)-1:
+            if i < len(self.all_sizes) - 1:
                 new_vals += np.dot(self.recurrent_weights[i-1], self.values[i])
             # apply activation function
-            self.pre_activations[i] = new_vals
+            self.pre_activations[i-1] = new_vals
             self.values[i] = self.activation_function(new_vals)
 
     def predict(self):

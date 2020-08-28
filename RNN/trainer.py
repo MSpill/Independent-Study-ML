@@ -9,7 +9,7 @@ def derivative(activation_function):
     elif activation_function is rnn.leaky_relu:
         return lambda x: np.piecewise(x, [x < 0, x >= 0], [lambda a: -0.01, lambda a: 1])
     elif activation_function is rnn.sigmoid:
-        return lambda x: 2 * (2.71 ** (-x)) / ((1 + 2.71 ** (-x)) ** 2)
+        return lambda x: (2.71 ** (-x)) / ((1 + 2.71 ** (-x)) ** 2)
 
 
 class RNNTrainer:
@@ -36,8 +36,10 @@ class RNNTrainer:
             while step < self.batch_size:
                 self.rnn.perform_timestep(self.inputs[start_index+step])
                 predictions.append(self.rnn.predict())
-                states.append(self.rnn.values[1:-1])
-                pre_activations.append(self.rnn.pre_activations[1:])
+                # including input in states array for ease in backprop
+                states.append(self.rnn.values[0:-1])
+                pre_activations.append(
+                    [i * 1.0 for i in self.rnn.pre_activations])
                 step += 1
 
             # perform backprop through time
@@ -55,7 +57,8 @@ class RNNTrainer:
                 state_derivs = [self.rnn.values[i] *
                                 0 for i in range(1, len(self.rnn.values)-1)]
 
-                output_error = predictions[t] - self.outputs[start_index+t]
+                output_error = predictions[t] - \
+                    np.transpose([self.outputs[start_index+t]])
                 squared_error += np.sum(output_error ** 2) / \
                     len(self.outputs[start_index+t]) / len(predictions)
 
@@ -72,6 +75,19 @@ class RNNTrainer:
                 # they were used more than once to produce this timestep's predict, so we need
                 # to backpropagate through time to sum up all the derivatives
 
+                # most recent timestep, feedforward only
+                for i in range(len(state_derivs)-1, -1, -1):
+                    # top layer will depend on just output or just next top layer
+                    if i == len(state_derivs)-1:
+                        # case where it just depends on output
+                        state_derivs[i] = derivative(
+                            self.rnn.activation_function)(pre_activations[t][i]) * np.dot(np.transpose(self.rnn.forward_weights[i+1]), output_deriv)
+                    else:
+                        state_derivs[i] = derivative(self.rnn.activation_function)(
+                            pre_activations[t][i]) * np.dot(np.transpose(self.rnn.forward_weights[i+1]), state_derivs[i+1])
+                    bias_derivs[i] += state_derivs[i]
+                    feedforward_derivs[i] += np.dot(state_derivs[i],
+                                                    np.transpose(states[t][i]))
             # finally, use the partial derivatives to update the weights and biases
             mult_factor = self.learning_rate/self.batch_size
             for i in range(0, len(self.rnn.forward_weights)):
@@ -86,12 +102,13 @@ class RNNTrainer:
 
 
 if __name__ == '__main__':
-    inputs = [[0], [1], [0], [1]] * 20000
-    outputs = [[1], [0], [1], [0]] * 20000
-    my_rnn = rnn.RNN(1, [2, 3], 1, activation_function=rnn.leaky_relu)
+    inputs = [[0, 0], [0, 1], [1, 0], [1, 1]] * 2000
+    outputs = [[0, 1], [1, 0], [1, 1], [0, 0]] * 2000
+    my_rnn = rnn.RNN(2, [5, 5, 5], 2, activation_function=rnn.sigmoid)
+
     rnn_trainer = RNNTrainer(my_rnn, inputs, outputs,
-                             batch_size=10, learning_rate=0.3)
-    rnn_trainer.train(num_epochs=0.3)
+                             batch_size=1, learning_rate=0.5)
+    rnn_trainer.train(num_epochs=10)
 
     for i in range(100):
         my_rnn.perform_timestep(inputs[i])
