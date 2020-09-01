@@ -53,7 +53,7 @@ class RNNTrainer:
 
                 # this stores the derivatives of error w/ respect to neuron outputs
                 # it will be the info used to calculate derivatives for weights and biases
-                # we only need to store the most recently calculated timestep's deltas
+                # we only need to store the most recently calculated timestep's derivs
                 state_derivs = [self.rnn.values[i] *
                                 0 for i in range(1, len(self.rnn.values)-1)]
 
@@ -107,8 +107,8 @@ if __name__ == '__main__':
     my_rnn = rnn.RNN(2, [5, 5, 5], 2, activation_function=rnn.sigmoid)
 
     rnn_trainer = RNNTrainer(my_rnn, inputs, outputs,
-                             batch_size=1, learning_rate=0.5)
-    rnn_trainer.train(num_epochs=10)
+                             batch_size=4, learning_rate=20)
+    rnn_trainer.train(num_epochs=40)
 
     for i in range(100):
         my_rnn.perform_timestep(inputs[i])
