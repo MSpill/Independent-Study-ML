@@ -1,5 +1,6 @@
 import numpy as np
 import random
+import matplotlib.pyplot as plt
 import rnn
 
 
@@ -24,6 +25,7 @@ class RNNTrainer:
     def train(self, num_epochs):
         # an epoch is when you've gone through as many example inputs as there are in the training set
         curr_epoch = 0.0
+        error_list = []
         while curr_epoch < num_epochs:
             self.rnn.reset_state()
             curr_epoch += (self.batch_size+0.0) / len(self.inputs)
@@ -98,17 +100,25 @@ class RNNTrainer:
                 self.rnn.biases[i] -= bias_derivs[i] * mult_factor
 
             # Print info to track training progress
+            error_list.append(squared_error)
             print("Avg squared error: {}".format(squared_error))
+            if squared_error < 0.0001:
+                # this is mostly to keep plots nice
+                break
+        plt.plot(error_list)
+        plt.xlabel("training step")
+        plt.ylabel("squared error")
+        plt.show()
 
 
 if __name__ == '__main__':
     inputs = [[0, 0], [0, 1], [1, 0], [1, 1]] * 2000
-    outputs = [[0, 1], [1, 0], [1, 1], [0, 0]] * 2000
+    outputs = [[0, 1], [1, 0], [1, 1], [0, 1]] * 2000
     my_rnn = rnn.RNN(2, [5, 5, 5], 2, activation_function=rnn.sigmoid)
 
     rnn_trainer = RNNTrainer(my_rnn, inputs, outputs,
-                             batch_size=4, learning_rate=20)
-    rnn_trainer.train(num_epochs=40)
+                             batch_size=4, learning_rate=15)
+    rnn_trainer.train(num_epochs=5)
 
     for i in range(100):
         my_rnn.perform_timestep(inputs[i])
