@@ -26,7 +26,7 @@ class RNN:
 
         # bias vectors
         self.biases = [np.random.normal(
-            0, 0.01, (i, 1)) for i in self.layer_sizes]
+            0, 0.01, (i, 1)) + 0.5 for i in self.layer_sizes]
 
         # weight matrices
         self.forward_weights = [np.random.normal(

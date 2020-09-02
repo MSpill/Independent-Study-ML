@@ -26,6 +26,7 @@ class RNNTrainer:
         # an epoch is when you've gone through as many example inputs as there are in the training set
         curr_epoch = 0.0
         error_list = []
+        gradient_mags = [[], [], [], []]
         while curr_epoch < num_epochs:
             self.rnn.reset_state()
             curr_epoch += (self.batch_size+0.0) / len(self.inputs)
@@ -59,10 +60,14 @@ class RNNTrainer:
                 state_derivs = [self.rnn.values[i] *
                                 0 for i in range(1, len(self.rnn.values)-1)]
 
-                output_error = predictions[t] - \
-                    np.transpose([self.outputs[start_index+t]])
+                target = np.transpose([self.outputs[start_index+t]])
+
+                output_error = predictions[t] - target
                 squared_error += np.sum(output_error ** 2) / \
                     len(self.outputs[start_index+t]) / len(predictions)
+
+                # output_error = -(target / predictions[t]) - \
+                #    (target - 1.0) / (1.0 - predictions[t])
 
                 # calculate derivs for state-to-output weights and output biases
                 # these only need to be calculated once, they aren't used earlier
@@ -94,6 +99,7 @@ class RNNTrainer:
             mult_factor = self.learning_rate/self.batch_size
             for i in range(0, len(self.rnn.forward_weights)):
                 self.rnn.forward_weights[i] -= feedforward_derivs[i] * mult_factor
+                gradient_mags[i].append(np.mean(np.abs(feedforward_derivs[i])))
             for i in range(0, len(self.rnn.recurrent_weights)):
                 self.rnn.recurrent_weights[i] -= recurrent_derivs[i] * mult_factor
             for i in range(0, len(self.rnn.biases)):
@@ -105,20 +111,26 @@ class RNNTrainer:
             if squared_error < 0.0001:
                 # this is mostly to keep plots nice
                 break
-        plt.plot(error_list)
+                pass
+        #plt.plot([0.2] * len(error_list))
+        for i in range(len(gradient_mags)):
+            plt.plot(gradient_mags[i])
+        plt.legend([0, 1, 2, 3])
         plt.xlabel("training step")
-        plt.ylabel("squared error")
+        plt.ylabel("magnitude of weight gradient")
         plt.show()
+        # plt.plot(error_list)
+        # plt.show()
 
 
 if __name__ == '__main__':
     inputs = [[0, 0], [0, 1], [1, 0], [1, 1]] * 2000
-    outputs = [[0, 1], [1, 0], [1, 1], [0, 1]] * 2000
+    outputs = [[0, 1], [1, 0], [1, 1], [0, 0]] * 2000
     my_rnn = rnn.RNN(2, [5, 5, 5], 2, activation_function=rnn.sigmoid)
 
     rnn_trainer = RNNTrainer(my_rnn, inputs, outputs,
                              batch_size=4, learning_rate=15)
-    rnn_trainer.train(num_epochs=5)
+    rnn_trainer.train(num_epochs=50)
 
     for i in range(100):
         my_rnn.perform_timestep(inputs[i])
