@@ -15,18 +15,23 @@ def derivative(activation_function):
 
 class RNNTrainer:
 
-    def __init__(self, rnn, inputs, outputs, learning_rate=0.01, batch_size=200):
+    def __init__(self, rnn, inputs, outputs, batch_size=200, learning_rate=0.01, momentum=0.9):
         self.rnn = rnn
         self.inputs = inputs
         self.outputs = outputs
         self.batch_size = batch_size
         self.learning_rate = learning_rate
+        self.momentum = momentum
 
     def train(self, num_epochs):
         # an epoch is when you've gone through as many example inputs as there are in the training set
         curr_epoch = 0.0
         error_list = []
-        gradient_mags = [[], [], [], []]
+        gradient_mags = [[], [], [], [], []]
+
+        prev_feedforward_derivs = [w * 0 for w in self.rnn.forward_weights]
+        prev_recurrent_derivs = [w * 0 for w in self.rnn.recurrent_weights]
+        prev_bias_derivs = [b * 0 for b in self.rnn.biases]
         while curr_epoch < num_epochs:
             self.rnn.reset_state()
             curr_epoch += (self.batch_size+0.0) / len(self.inputs)
@@ -71,6 +76,8 @@ class RNNTrainer:
 
                 # calculate derivs for state-to-output weights and output biases
                 # these only need to be calculated once, they aren't used earlier
+
+                # I have checked this part and I'm confident it's correct
                 output_deriv = output_error * \
                     derivative(self.rnn.activation_function)(
                         pre_activations[t][-1])
@@ -98,26 +105,40 @@ class RNNTrainer:
             # finally, use the partial derivatives to update the weights and biases
             mult_factor = self.learning_rate/self.batch_size
             for i in range(0, len(self.rnn.forward_weights)):
-                self.rnn.forward_weights[i] -= feedforward_derivs[i] * mult_factor
+                delta = feedforward_derivs[i] * \
+                    mult_factor + self.momentum * prev_feedforward_derivs[i]
+                self.rnn.forward_weights[i] -= delta
+                prev_feedforward_derivs[i] = delta
                 gradient_mags[i].append(np.mean(np.abs(feedforward_derivs[i])))
             for i in range(0, len(self.rnn.recurrent_weights)):
-                self.rnn.recurrent_weights[i] -= recurrent_derivs[i] * mult_factor
+                delta = recurrent_derivs[i] * \
+                    mult_factor + self.momentum * prev_recurrent_derivs[i]
+                self.rnn.recurrent_weights[i] -= delta
+                prev_recurrent_derivs[i] = delta
             for i in range(0, len(self.rnn.biases)):
-                self.rnn.biases[i] -= bias_derivs[i] * mult_factor
+                delta = bias_derivs[i] * \
+                    mult_factor + self.momentum * prev_bias_derivs[i]
+                self.rnn.biases[i] -= delta
+                prev_bias_derivs[i] = delta
 
             # Print info to track training progress
             error_list.append(squared_error)
             print("Avg squared error: {}".format(squared_error))
-            if squared_error < 0.0001:
+            if squared_error < 0.0005:
                 # this is mostly to keep plots nice
                 break
                 pass
         #plt.plot([0.2] * len(error_list))
+        plt.subplot(2, 1, 1)
         for i in range(len(gradient_mags)):
             plt.plot(gradient_mags[i])
         plt.legend([0, 1, 2, 3])
+        plt.ylabel("avg. magnitude of weight gradient")
+
+        plt.subplot(2, 1, 2)
+        plt.plot(error_list)
         plt.xlabel("training step")
-        plt.ylabel("magnitude of weight gradient")
+        plt.ylabel("squared error")
         plt.show()
         # plt.plot(error_list)
         # plt.show()
@@ -125,11 +146,11 @@ class RNNTrainer:
 
 if __name__ == '__main__':
     inputs = [[0, 0], [0, 1], [1, 0], [1, 1]] * 2000
-    outputs = [[0, 1], [1, 0], [1, 1], [0, 0]] * 2000
+    outputs = [[0, 0], [0, 1], [1, 0], [1, 1]] * 2000
     my_rnn = rnn.RNN(2, [5, 5, 5], 2, activation_function=rnn.sigmoid)
 
     rnn_trainer = RNNTrainer(my_rnn, inputs, outputs,
-                             batch_size=4, learning_rate=15)
+                             batch_size=4, learning_rate=15, momentum=0.7)
     rnn_trainer.train(num_epochs=50)
 
     for i in range(100):
