@@ -33,7 +33,7 @@ class RNN:
             0, 0.01, (self.all_sizes[i+1], self.all_sizes[i])) for i in range(0, self.all_sizes.__len__() - 1)]
 
         self.recurrent_weights = [np.random.normal(
-            0, 0.00001, (i, i)) for i in state_sizes]
+            0, 0.01, (i, i)) for i in state_sizes]
 
         self.activation_function = activation_function
 

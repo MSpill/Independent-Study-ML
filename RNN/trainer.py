@@ -27,7 +27,7 @@ class RNNTrainer:
         # an epoch is when you've gone through as many example inputs as there are in the training set
         curr_epoch = 0.0
         error_list = []
-        gradient_mags = [[], [], [], [], []]
+        gradient_mags = [[] for i in range(len(self.rnn.forward_weights))]
 
         prev_feedforward_derivs = [w * 0 for w in self.rnn.forward_weights]
         prev_recurrent_derivs = [w * 0 for w in self.rnn.recurrent_weights]
@@ -37,7 +37,7 @@ class RNNTrainer:
             curr_epoch += (self.batch_size+0.0) / len(self.inputs)
             start_index = random.randint(0, len(self.inputs) - self.batch_size)
             predictions = []
-            states = []
+            states = [self.rnn.values[0:-1]]
             pre_activations = []
             # feed in batch_size inputs and record all the predictions and internal states
             step = 0
@@ -83,25 +83,38 @@ class RNNTrainer:
                         pre_activations[t][-1])
                 bias_derivs[-1] += output_deriv
                 feedforward_derivs[-1] += np.dot(output_deriv,
-                                                 np.transpose(states[t][-1]))
+                                                 np.transpose(states[t+1][-1]))
 
                 # now calculate derivs for other feedforward/recurrent weights and biases
                 # they were used more than once to produce this timestep's predict, so we need
                 # to backpropagate through time to sum up all the derivatives
 
                 # most recent timestep, feedforward only
-                for i in range(len(state_derivs)-1, -1, -1):
-                    # top layer will depend on just output or just next top layer
-                    if i == len(state_derivs)-1:
-                        # case where it just depends on output
-                        state_derivs[i] = derivative(
-                            self.rnn.activation_function)(pre_activations[t][i]) * np.dot(np.transpose(self.rnn.forward_weights[i+1]), output_deriv)
-                    else:
-                        state_derivs[i] = derivative(self.rnn.activation_function)(
-                            pre_activations[t][i]) * np.dot(np.transpose(self.rnn.forward_weights[i+1]), state_derivs[i+1])
-                    bias_derivs[i] += state_derivs[i]
-                    feedforward_derivs[i] += np.dot(state_derivs[i],
-                                                    np.transpose(states[t][i]))
+                for t2 in range(t, -1, -1):
+                    for i in range(len(state_derivs)-1, -1, -1):
+                        if i == len(state_derivs)-1:
+                            # top hidden units will depend on just output or just next top layer
+                            if t2 == t:
+                                # case where it just depends on output
+                                state_derivs[i] = derivative(
+                                    self.rnn.activation_function)(pre_activations[t2][i]) * np.dot(np.transpose(self.rnn.forward_weights[i+1]), output_deriv)
+                            else:
+                                # case where it just depends on next timestep's top layer
+                                state_derivs[i] = derivative(
+                                    self.rnn.activation_function)(pre_activations[t2][i]) * np.dot(np.transpose(self.rnn.recurrent_weights[i]), state_derivs[i])
+                        else:
+                            # middle hidden units will depend on the higher hidden units and maybe the next timestep's units on same layer
+                            base_deriv = derivative(self.rnn.activation_function)(
+                                pre_activations[t2][i]) * np.dot(np.transpose(self.rnn.forward_weights[i+1]), state_derivs[i+1])
+                            if t2 != t:
+                                base_deriv += derivative(self.rnn.activation_function)(
+                                    pre_activations[t2][i]) * np.dot(np.transpose(self.rnn.recurrent_weights[i]), state_derivs[i])
+                            state_derivs[i] = base_deriv
+                        bias_derivs[i] += state_derivs[i]
+                        feedforward_derivs[i] += np.dot(state_derivs[i],
+                                                        np.transpose(states[t2+1][i]))
+                        recurrent_derivs[i] += np.dot(state_derivs[i],
+                                                      np.transpose(states[t2][i+1]))
             # finally, use the partial derivatives to update the weights and biases
             mult_factor = self.learning_rate/self.batch_size
             for i in range(0, len(self.rnn.forward_weights)):
@@ -147,10 +160,10 @@ class RNNTrainer:
 if __name__ == '__main__':
     inputs = [[0, 0], [0, 1], [1, 0], [1, 1]] * 2000
     outputs = [[0, 0], [0, 1], [1, 0], [1, 1]] * 2000
-    my_rnn = rnn.RNN(2, [5, 5, 5], 2, activation_function=rnn.sigmoid)
+    my_rnn = rnn.RNN(2, [5, 5], 2, activation_function=rnn.sigmoid)
 
     rnn_trainer = RNNTrainer(my_rnn, inputs, outputs,
-                             batch_size=4, learning_rate=15, momentum=0.7)
+                             batch_size=4, learning_rate=10, momentum=0.5)
     rnn_trainer.train(num_epochs=50)
 
     for i in range(100):
