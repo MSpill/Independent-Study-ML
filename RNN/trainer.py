@@ -137,7 +137,7 @@ class RNNTrainer:
             # Print info to track training progress
             error_list.append(squared_error)
             print("Avg squared error: {}".format(squared_error))
-            if squared_error < 0.0005:
+            if squared_error < 0.005:
                 # this is mostly to keep plots nice
                 break
                 pass
@@ -158,12 +158,13 @@ class RNNTrainer:
 
 
 if __name__ == '__main__':
-    inputs = [[0, 0], [0, 1], [1, 0], [1, 1]] * 2000
-    outputs = [[0, 0], [0, 1], [1, 0], [1, 1]] * 2000
-    my_rnn = rnn.RNN(2, [5, 5], 2, activation_function=rnn.sigmoid)
+    inputs = [[0], [0], [1], [0], [1], [1], [1], [0], [0], [1], [0], [1], [0], [1], [1],
+              [0], [1], [1], [0], [1], [0], [0], [0], [1], [0], [0], [1], [1], [0]] * 200
+    outputs = [[inputs[i][0]*inputs[i-1][0]] for i in range(len(inputs))]
+    my_rnn = rnn.RNN(1, [10], 1, activation_function=rnn.sigmoid)
 
     rnn_trainer = RNNTrainer(my_rnn, inputs, outputs,
-                             batch_size=4, learning_rate=10, momentum=0.5)
+                             batch_size=200, learning_rate=0.7, momentum=0.8)
     rnn_trainer.train(num_epochs=50)
 
     for i in range(100):
