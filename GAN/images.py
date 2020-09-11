@@ -1,44 +1,54 @@
 # all this was yoinked from GeeksForGeeks
 
+from pathlib import Path
 import cv2
 import os
 
-# Read the video from specified path
-cam = cv2.VideoCapture(
-    "vid.mp4")
 
-try:
+def extract_images(video_path):
+    # Read the video from specified path
+    cam = cv2.VideoCapture(
+        str(video_path))
 
-    # creating a folder named data
-    if not os.path.exists('data'):
-        os.makedirs('data')
+    try:
 
-# if not created then raise error
-except OSError:
-    print('Error: Creating directory of data')
+        # creating a folder named data
+        if not os.path.exists('data/images'):
+            os.makedirs('data/images')
 
-# frame
-currentframe = 0
+    # if not created then raise error
+    except OSError:
+        print('Error: Creating directory of data')
 
-while(True):
+    # frame
+    currentframe = 0
 
-    # reading from frame
-    ret, frame = cam.read()
+    while(True):
 
-    if ret:
-        # if video is still left continue creating images
-        name = './data/frame' + str(currentframe) + '.jpg'
-        print('Creating...' + name)
+        # reading from frame
+        ret, frame = cam.read()
 
-        # writing the extracted images
-        cv2.imwrite(name, frame)
+        if ret:
+            # if video is still left continue creating images
+            name = './data/images/' + \
+                str(video_path.name).split('.')[
+                    0] + '_' + str(currentframe) + '.jpg'
+            print('Creating...' + name)
 
-        # increasing counter so that it will
-        # show how many frames are created
-        currentframe += 1
-    else:
-        break
+            # writing the extracted images
+            cv2.imwrite(name, frame)
 
-# Release all space and windows once done
-cam.release()
-cv2.destroyAllWindows()
+            # increasing counter so that it will
+            # show how many frames are created
+            currentframe += 1
+        else:
+            break
+
+    # Release all space and windows once done
+    cam.release()
+    cv2.destroyAllWindows()
+
+
+for path in Path('data').rglob('*.mp4'):
+    print(path)
+    extract_images(path)
