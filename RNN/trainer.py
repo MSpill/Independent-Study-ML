@@ -2,6 +2,8 @@ import numpy as np
 import random
 import matplotlib.pyplot as plt
 import rnn
+import data.onehottext as one_hotter
+import pickle
 
 
 def derivative(activation_function):
@@ -158,15 +160,30 @@ class RNNTrainer:
 
 
 if __name__ == '__main__':
-    inputs = [[0], [0], [1], [0], [1], [1], [1], [0], [0], [1], [0], [1], [0], [1], [1],
-              [0], [1], [1], [0], [1], [0], [0], [0], [1], [0], [0], [1], [1], [0]] * 200
-    outputs = [[inputs[i][0]*inputs[i-1][0]] for i in range(len(inputs))]
-    my_rnn = rnn.RNN(1, [10], 1, activation_function=rnn.sigmoid)
 
-    rnn_trainer = RNNTrainer(my_rnn, inputs, outputs,
-                             batch_size=200, learning_rate=0.7, momentum=0.8)
+    thicc_data = one_hotter.one_hot_text_data("data.c")
+    print(len(thicc_data))
+
+    thicc_input = thicc_data
+    thicc_output = [thicc_data[n+1] for n in range(0, len(thicc_input)-1)]
+    # make them the same size, one noisy target is fine
+    thicc_output.append(thicc_output[0])
+
+    input_size = len(thicc_input[0])
+
+    # inputs = [[0], [0], [1], [0], [1], [1], [1], [0], [0], [1], [0], [1], [0], [1], [1],
+    #          [0], [1], [1], [0], [1], [0], [0], [0], [1], [0], [0], [1], [1], [0]] * 200
+    #outputs = [[inputs[i][0]*inputs[i-1][0]] for i in range(len(inputs))]
+
+    my_rnn = rnn.RNN(input_size, [500, 500], input_size,
+                     activation_function=rnn.sigmoid)
+
+    rnn_trainer = RNNTrainer(my_rnn, thicc_input, thicc_output,
+                             batch_size=50, learning_rate=0.002, momentum=0.9)
     rnn_trainer.train(num_epochs=50)
 
+    pickle.dump(my_rnn, "rnn1.rnn")
+
     for i in range(100):
-        my_rnn.perform_timestep(inputs[i])
+        my_rnn.perform_timestep(thicc_input[i])
         print(my_rnn.predict())

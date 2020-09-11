@@ -1,7 +1,9 @@
 
+# this is probably hella slow but it's fast enough for me
 
-def one_hot_text_data(size=100000):
-    data_file = open("data.c", "r")
+
+def one_hot_text_data(path, size=100000):
+    data_file = open(path, "r")
     data_str = data_file.read()
     data_subset = data_str[:size]
 
