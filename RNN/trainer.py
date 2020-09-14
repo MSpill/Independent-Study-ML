@@ -161,7 +161,7 @@ class RNNTrainer:
 
 if __name__ == '__main__':
 
-    thicc_data = one_hotter.one_hot_text_data("data.c")
+    thicc_data = one_hotter.one_hot_text_data("data/data.c", size=1000000)
     print(len(thicc_data))
 
     thicc_input = thicc_data
@@ -175,14 +175,17 @@ if __name__ == '__main__':
     #          [0], [1], [1], [0], [1], [0], [0], [0], [1], [0], [0], [1], [1], [0]] * 200
     #outputs = [[inputs[i][0]*inputs[i-1][0]] for i in range(len(inputs))]
 
-    my_rnn = rnn.RNN(input_size, [500, 500], input_size,
+    my_rnn = rnn.RNN(input_size, [400, 200], input_size,
                      activation_function=rnn.sigmoid)
+    #my_rnn = pickle.load(open('rnn1.rnn', 'rb'))
 
     rnn_trainer = RNNTrainer(my_rnn, thicc_input, thicc_output,
-                             batch_size=50, learning_rate=0.002, momentum=0.9)
-    rnn_trainer.train(num_epochs=50)
+                             batch_size=25, learning_rate=0.003, momentum=0.96)
+    rnn_trainer.train(num_epochs=25)
 
-    pickle.dump(my_rnn, "rnn1.rnn")
+    rnn_file = open('rnn2.rnn', 'wb')
+    pickle.dump(my_rnn, rnn_file)
+    rnn_file.close()
 
     for i in range(100):
         my_rnn.perform_timestep(thicc_input[i])

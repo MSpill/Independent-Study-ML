@@ -26,7 +26,7 @@ class RNN:
 
         # bias vectors
         self.biases = [np.random.normal(
-            0, 0.01, (i, 1)) + 0.5 for i in self.layer_sizes]
+            0, 0.01, (i, 1)) for i in self.layer_sizes]
 
         # weight matrices
         self.forward_weights = [np.random.normal(
@@ -39,6 +39,8 @@ class RNN:
 
     def reset_state(self):
         for layer in self.values:
+            layer = layer * 0
+        for layer in self.pre_activations:
             layer = layer * 0
 
     def perform_timestep(self, input_vector):

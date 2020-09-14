@@ -1,1 +1,7 @@
+__pycache__
+.DS_Store
 *.pyc
+*.jpg
+*.MOV
+*.mp4
+data.c
