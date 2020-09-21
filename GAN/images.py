@@ -49,6 +49,6 @@ def extract_images(video_path):
     cv2.destroyAllWindows()
 
 
-for path in Path('data').rglob('*.mp4'):
+for path in Path('data').rglob('*.MOV'):
     print(path)
     extract_images(path)

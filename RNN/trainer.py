@@ -17,15 +17,12 @@ def derivative(activation_function):
 
 class RNNTrainer:
 
-    def __init__(self, rnn, inputs, outputs, batch_size=200, learning_rate=0.01, momentum=0.9):
+    def __init__(self, rnn, inputs, outputs):
         self.rnn = rnn
         self.inputs = inputs
         self.outputs = outputs
-        self.batch_size = batch_size
-        self.learning_rate = learning_rate
-        self.momentum = momentum
 
-    def train(self, num_epochs):
+    def train(self, num_epochs, batch_size=10, time_depth=20, learning_rate=0.01, momentum=0.9):
         # an epoch is when you've gone through as many example inputs as there are in the training set
         curr_epoch = 0.0
         error_list = []
@@ -34,23 +31,39 @@ class RNNTrainer:
         prev_feedforward_derivs = [w * 0 for w in self.rnn.forward_weights]
         prev_recurrent_derivs = [w * 0 for w in self.rnn.recurrent_weights]
         prev_bias_derivs = [b * 0 for b in self.rnn.biases]
-        while curr_epoch < num_epochs:
+
+        start_index = 0
+        states = []
+        pre_activations = []
+        total_steps = 0
+
+        def reset_run():
+            nonlocal start_index
+            nonlocal states
+            nonlocal pre_activations
+            nonlocal total_steps
+            total_steps = 0
+            start_index = random.randint(0, len(self.inputs) - batch_size)
             self.rnn.reset_state()
-            curr_epoch += (self.batch_size+0.0) / len(self.inputs)
-            start_index = random.randint(0, len(self.inputs) - self.batch_size)
+            states = [self.rnn.values[0:-1]] * (time_depth+1)
+            pre_activations = [[
+                i * 0.0 for i in self.rnn.pre_activations]] * time_depth
+
+        reset_run()
+        while curr_epoch < num_epochs:
+            curr_epoch += (batch_size+0.0) / len(self.inputs)
             predictions = []
-            states = [self.rnn.values[0:-1]]
-            pre_activations = []
             # feed in batch_size inputs and record all the predictions and internal states
-            step = 0
-            while step < self.batch_size:
-                self.rnn.perform_timestep(self.inputs[start_index+step])
+            for i in range(start_index, start_index+batch_size):
+                self.rnn.perform_timestep(self.inputs[i])
                 predictions.append(self.rnn.predict())
                 # including input in states array for ease in backprop
                 states.append(self.rnn.values[0:-1])
                 pre_activations.append(
                     [i * 1.0 for i in self.rnn.pre_activations])
-                step += 1
+                if len(states) > time_depth+batch_size+1:
+                    states.pop(0)
+                    pre_activations.pop(0)
 
             # perform backprop through time
 
@@ -71,7 +84,7 @@ class RNNTrainer:
 
                 output_error = predictions[t] - target
                 squared_error += np.sum(output_error ** 2) / \
-                    len(self.outputs[start_index+t]) / len(predictions)
+                    len(self.outputs[0]) / len(predictions)
 
                 # output_error = -(target / predictions[t]) - \
                 #    (target - 1.0) / (1.0 - predictions[t])
@@ -82,59 +95,64 @@ class RNNTrainer:
                 # I have checked this part and I'm confident it's correct
                 output_deriv = output_error * \
                     derivative(self.rnn.activation_function)(
-                        pre_activations[t][-1])
+                        pre_activations[t+time_depth][-1])
                 bias_derivs[-1] += output_deriv
                 feedforward_derivs[-1] += np.dot(output_deriv,
-                                                 np.transpose(states[t+1][-1]))
+                                                 np.transpose(states[t+time_depth+1][-1]))
 
                 # now calculate derivs for other feedforward/recurrent weights and biases
                 # they were used more than once to produce this timestep's predict, so we need
                 # to backpropagate through time to sum up all the derivatives
 
-                # most recent timestep, feedforward only
-                for t2 in range(t, -1, -1):
+                # backprop through time with respect to this timestep's output
+                for t2 in range(0, min(time_depth, t+total_steps+1)):
                     for i in range(len(state_derivs)-1, -1, -1):
                         if i == len(state_derivs)-1:
                             # top hidden units will depend on just output or just next top layer
-                            if t2 == t:
+                            if t2 == 0:
                                 # case where it just depends on output
                                 state_derivs[i] = derivative(
-                                    self.rnn.activation_function)(pre_activations[t2][i]) * np.dot(np.transpose(self.rnn.forward_weights[i+1]), output_deriv)
+                                    self.rnn.activation_function)(pre_activations[t-t2+time_depth][i]) * np.dot(np.transpose(self.rnn.forward_weights[i+1]), output_deriv)
                             else:
                                 # case where it just depends on next timestep's top layer
                                 state_derivs[i] = derivative(
-                                    self.rnn.activation_function)(pre_activations[t2][i]) * np.dot(np.transpose(self.rnn.recurrent_weights[i]), state_derivs[i])
+                                    self.rnn.activation_function)(pre_activations[t-t2+time_depth][i]) * np.dot(np.transpose(self.rnn.recurrent_weights[i]), state_derivs[i])
                         else:
                             # middle hidden units will depend on the higher hidden units and maybe the next timestep's units on same layer
                             base_deriv = derivative(self.rnn.activation_function)(
-                                pre_activations[t2][i]) * np.dot(np.transpose(self.rnn.forward_weights[i+1]), state_derivs[i+1])
-                            if t2 != t:
+                                pre_activations[t-t2+time_depth][i]) * np.dot(np.transpose(self.rnn.forward_weights[i+1]), state_derivs[i+1])
+                            if t2 != 0:
                                 base_deriv += derivative(self.rnn.activation_function)(
-                                    pre_activations[t2][i]) * np.dot(np.transpose(self.rnn.recurrent_weights[i]), state_derivs[i])
+                                    pre_activations[t-t2+time_depth][i]) * np.dot(np.transpose(self.rnn.recurrent_weights[i]), state_derivs[i])
                             state_derivs[i] = base_deriv
                         bias_derivs[i] += state_derivs[i]
                         feedforward_derivs[i] += np.dot(state_derivs[i],
-                                                        np.transpose(states[t2+1][i]))
+                                                        np.transpose(states[t-t2+time_depth+1][i]))
                         recurrent_derivs[i] += np.dot(state_derivs[i],
-                                                      np.transpose(states[t2][i+1]))
+                                                      np.transpose(states[t-t2+time_depth][i+1]))
             # finally, use the partial derivatives to update the weights and biases
-            mult_factor = self.learning_rate/self.batch_size
+            mult_factor = learning_rate/batch_size
             for i in range(0, len(self.rnn.forward_weights)):
                 delta = feedforward_derivs[i] * \
-                    mult_factor + self.momentum * prev_feedforward_derivs[i]
+                    mult_factor + momentum * prev_feedforward_derivs[i]
                 self.rnn.forward_weights[i] -= delta
                 prev_feedforward_derivs[i] = delta
                 gradient_mags[i].append(np.mean(np.abs(feedforward_derivs[i])))
             for i in range(0, len(self.rnn.recurrent_weights)):
                 delta = recurrent_derivs[i] * \
-                    mult_factor + self.momentum * prev_recurrent_derivs[i]
+                    mult_factor + momentum * prev_recurrent_derivs[i]
                 self.rnn.recurrent_weights[i] -= delta
                 prev_recurrent_derivs[i] = delta
             for i in range(0, len(self.rnn.biases)):
                 delta = bias_derivs[i] * \
-                    mult_factor + self.momentum * prev_bias_derivs[i]
+                    mult_factor + momentum * prev_bias_derivs[i]
                 self.rnn.biases[i] -= delta
                 prev_bias_derivs[i] = delta
+
+            start_index += batch_size
+            total_steps += batch_size
+            if start_index >= len(self.outputs) - batch_size or total_steps > 3000:
+                reset_run()
 
             # Print info to track training progress
             error_list.append(squared_error)
@@ -161,7 +179,8 @@ class RNNTrainer:
 
 if __name__ == '__main__':
 
-    thicc_data = one_hotter.one_hot_text_data("data/data.c", size=1000000)
+    thicc_data = one_hotter.one_hot_text_data(
+        "/Users/matthewspillman/Documents/_12th/Indep Study/Independent-Study-ML/RNN/data/data.c", size=20)
     print(len(thicc_data))
 
     thicc_input = thicc_data
@@ -175,15 +194,15 @@ if __name__ == '__main__':
     #          [0], [1], [1], [0], [1], [0], [0], [0], [1], [0], [0], [1], [1], [0]] * 200
     #outputs = [[inputs[i][0]*inputs[i-1][0]] for i in range(len(inputs))]
 
-    my_rnn = rnn.RNN(input_size, [400, 200], input_size,
+    my_rnn = rnn.RNN(input_size, [100, 100], input_size,
                      activation_function=rnn.sigmoid)
-    #my_rnn = pickle.load(open('rnn1.rnn', 'rb'))
+    #my_rnn = pickle.load(open('rnn4.rnn', 'rb'))
 
-    rnn_trainer = RNNTrainer(my_rnn, thicc_input, thicc_output,
-                             batch_size=25, learning_rate=0.003, momentum=0.96)
-    rnn_trainer.train(num_epochs=25)
+    rnn_trainer = RNNTrainer(my_rnn, thicc_input, thicc_output)
+    rnn_trainer.train(num_epochs=400000, batch_size=20,
+                      time_depth=20, learning_rate=0.003, momentum=0.96)
 
-    rnn_file = open('rnn2.rnn', 'wb')
+    rnn_file = open('rnn5.rnn', 'wb')
     pickle.dump(my_rnn, rnn_file)
     rnn_file.close()
 

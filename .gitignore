@@ -4,4 +4,6 @@ __pycache__
 *.jpg
 *.MOV
 *.mp4
+*.rnn
 data.c
+shakespeare.txt

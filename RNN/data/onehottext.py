@@ -5,7 +5,11 @@
 def one_hot_text_data(path, size=100000):
     data_file = open(path, "r")
     data_str = data_file.read()
-    data_subset = data_str[:size]
+    if size == -1:
+        data_subset = data_str[:]
+    else:
+        data_subset = data_str[:size]
+    print(len(data_subset))
 
     chars_used = []
     for char in data_subset:
