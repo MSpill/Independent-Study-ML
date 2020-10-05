@@ -5,5 +5,9 @@ __pycache__
 *.MOV
 *.mp4
 *.rnn
+*.zip
+*.png
 data.c
 shakespeare.txt
+ckpt*
+checkpoint
