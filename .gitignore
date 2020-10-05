@@ -6,6 +6,12 @@ __pycache__
 *.mp4
 *.rnn
 *.zip
+<<<<<<< HEAD
 *.fna
+=======
+*.png
+>>>>>>> 62bd8c3004665d564a7dc2f55adbac5609265a95
 data.c
 shakespeare.txt
+ckpt*
+checkpoint

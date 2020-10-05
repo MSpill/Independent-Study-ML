@@ -7,6 +7,7 @@ import os
 import PIL
 from tensorflow.keras import layers
 import time
+import load_images
 
 from IPython import display
 
@@ -16,38 +17,49 @@ if (not os.environ.get('PYTHONHTTPSVERIFY', '') and
     ssl._create_default_https_context = ssl._create_unverified_context
 
 
-(train_images, train_labels), (_, _) = tf.keras.datasets.mnist.load_data()
+#(train_images, train_labels), (_, _) = tf.keras.datasets.mnist.load_data()
 
-train_images = train_images.reshape(train_images.shape[0], 28, 28, 1).astype('float32')
-train_images = (train_images - 127.5) / 127.5 # Normalize the images to [-1, 1]
+#train_images = train_images.reshape(train_images.shape[0], 28, 28, 1).astype('float32')
+#train_images = (train_images - 127.5) / 127.5 # Normalize the images to [-1, 1]
+train_images = load_images.load(num=-1)
 
-BUFFER_SIZE = 60000
-BATCH_SIZE = 256
+BUFFER_SIZE = len(train_images)
+BATCH_SIZE = 64
 
 # Batch and shuffle the data
 train_dataset = tf.data.Dataset.from_tensor_slices(train_images).shuffle(BUFFER_SIZE).batch(BATCH_SIZE)
 
 def make_generator_model():
     model = tf.keras.Sequential()
-    model.add(layers.Dense(7*7*256, use_bias=False, input_shape=(100,)))
+    model.add(layers.Dense(8*5*256, use_bias=False, input_shape=(100,)))
     model.add(layers.BatchNormalization())
     model.add(layers.LeakyReLU())
 
-    model.add(layers.Reshape((7, 7, 256)))
-    assert model.output_shape == (None, 7, 7, 256) # Note: None is the batch size
+    model.add(layers.Reshape((8, 5, 256)))
+    assert model.output_shape == (None, 8, 5, 256) # Note: None is the batch size
 
-    model.add(layers.Conv2DTranspose(128, (5, 5), strides=(1, 1), padding='same', use_bias=False))
-    assert model.output_shape == (None, 7, 7, 128)
+    model.add(layers.Conv2DTranspose(256, (5, 5), strides=(2, 2), padding='same', output_padding=(0,0), use_bias=False))
+    assert model.output_shape == (None, 15, 9, 256)
     model.add(layers.BatchNormalization())
     model.add(layers.LeakyReLU())
 
-    model.add(layers.Conv2DTranspose(64, (5, 5), strides=(2, 2), padding='same', use_bias=False))
-    assert model.output_shape == (None, 14, 14, 64)
+    model.add(layers.Conv2DTranspose(128, (5, 5), strides=(2, 2), padding='same', output_padding=(1,0), use_bias=False))
+    assert model.output_shape == (None, 30, 17, 128)
     model.add(layers.BatchNormalization())
     model.add(layers.LeakyReLU())
 
-    model.add(layers.Conv2DTranspose(1, (5, 5), strides=(2, 2), padding='same', use_bias=False, activation='tanh'))
-    assert model.output_shape == (None, 28, 28, 1)
+    model.add(layers.Conv2DTranspose(64, (5, 5), strides=(2, 2), padding='same', output_padding=(1,1), use_bias=False))
+    assert model.output_shape == (None, 60, 34, 64)
+    model.add(layers.BatchNormalization())
+    model.add(layers.LeakyReLU())
+
+    model.add(layers.Conv2DTranspose(32, (5, 5), strides=(2, 2), padding='same', output_padding=(1,1), use_bias=False))
+    assert model.output_shape == (None, 120, 68, 32)
+    model.add(layers.BatchNormalization())
+    model.add(layers.LeakyReLU())
+
+    model.add(layers.Conv2DTranspose(3, (5, 5), strides=(2, 2), padding='same',  output_padding=(1,0), use_bias=False, activation='tanh'))
+    assert model.output_shape == (None, 240, 135, 3)
 
     return model
 
@@ -60,8 +72,20 @@ plt.imshow(generated_image[0, :, :, 0], cmap='gray')
 
 def make_discriminator_model():
     model = tf.keras.Sequential()
-    model.add(layers.Conv2D(64, (5, 5), strides=(2, 2), padding='same',
-                                     input_shape=[28, 28, 1]))
+    model.add(layers.Conv2D(32, (5, 5), strides=(2, 2), padding='same',
+                                     input_shape=[240, 135, 3]))
+    model.add(layers.LeakyReLU())
+    model.add(layers.Dropout(0.3))
+
+    model.add(layers.Conv2D(64, (5, 5), strides=(2, 2), padding='same'))
+    model.add(layers.LeakyReLU())
+    model.add(layers.Dropout(0.3))
+
+    model.add(layers.Conv2D(64, (5, 5), strides=(1, 1), padding='same'))
+    model.add(layers.LeakyReLU())
+    model.add(layers.Dropout(0.3))
+
+    model.add(layers.Conv2D(128, (5, 5), strides=(2, 2), padding='same'))
     model.add(layers.LeakyReLU())
     model.add(layers.Dropout(0.3))
 
@@ -100,9 +124,9 @@ checkpoint = tf.train.Checkpoint(generator_optimizer=generator_optimizer,
                                  generator=generator,
                                  discriminator=discriminator)
 
-EPOCHS = 50
+EPOCHS = 10000
 noise_dim = 100
-num_examples_to_generate = 16
+num_examples_to_generate = 4
 
 # We will reuse this seed overtime (so it's easier)
 # to visualize progress in the animated GIF)
@@ -157,17 +181,18 @@ def train(dataset, epochs):
 def generate_and_save_images(model, epoch, test_input):
   # Notice `training` is set to False.
   # This is so all layers run in inference mode (batchnorm).
-  predictions = model(test_input, training=False)
+  predictions = np.asarray(model(test_input, training=False))
 
-  fig = plt.figure(figsize=(4,4))
+  fig = plt.figure(figsize=(2,2))
 
   for i in range(predictions.shape[0]):
-      plt.subplot(4, 4, i+1)
-      plt.imshow(predictions[i, :, :, 0] * 127.5 + 127.5, cmap='gray')
+      plt.subplot(2, 2, i+1)
+      plt.imshow((predictions[i, :, :, :] + 1)*0.5)
       plt.axis('off')
 
-  plt.savefig('image_at_epoch_{:04d}.png'.format(epoch))
-  plt.show()
+  plt.savefig('training_images/image_at_epoch_{:04d}.png'.format(epoch))
+  plt.close()
+  #plt.show()
 
 train(train_dataset, EPOCHS)
 
