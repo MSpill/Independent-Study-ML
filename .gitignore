@@ -5,5 +5,7 @@ __pycache__
 *.MOV
 *.mp4
 *.rnn
+*.zip
+*.fna
 data.c
 shakespeare.txt

@@ -4,13 +4,17 @@
 
 def one_hot_text_data(path, size=100000):
     data_file = open(path, "r")
-    data_str = data_file.read()
+    data_str = data_file.read().upper()
     if size == -1:
         data_subset = data_str[:]
     else:
         data_subset = data_str[:size]
     print(len(data_subset))
 
+    return one_hot_str(data_subset)
+
+
+def one_hot_str(data_subset):
     chars_used = []
     for char in data_subset:
         if not chars_used.__contains__(char):
@@ -26,7 +30,7 @@ def one_hot_text_data(path, size=100000):
 
     if __name__ == '__main__':
         print("There were {} unique chars".format(chars_used.__len__()))
-    return one_hots
+    return (chars_used, one_hots)
 
 
 if __name__ == '__main__':

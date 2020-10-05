@@ -2,7 +2,8 @@ import numpy as np
 import random
 import matplotlib.pyplot as plt
 import rnn
-import data.onehottext as one_hotter
+import data.onehotgenome as one_hotter
+import data.onehottext as text_hotter
 import pickle
 
 
@@ -22,7 +23,7 @@ class RNNTrainer:
         self.inputs = inputs
         self.outputs = outputs
 
-    def train(self, num_epochs, batch_size=10, time_depth=20, learning_rate=0.01, momentum=0.9):
+    def train(self, num_epochs, batch_size=10, time_depth=20, learning_rate=0.01, momentum=0.9, charset=[]):
         # an epoch is when you've gone through as many example inputs as there are in the training set
         curr_epoch = 0.0
         error_list = []
@@ -108,17 +109,17 @@ class RNNTrainer:
                 for t2 in range(0, min(time_depth, t+total_steps+1)):
                     for i in range(len(state_derivs)-1, -1, -1):
                         if i == len(state_derivs)-1:
-                            # top hidden units will depend on just output or just next top layer
+                            # top hidden units will affect just output or just next top layer
                             if t2 == 0:
-                                # case where it just depends on output
+                                # case where it just affects output
                                 state_derivs[i] = derivative(
                                     self.rnn.activation_function)(pre_activations[t-t2+time_depth][i]) * np.dot(np.transpose(self.rnn.forward_weights[i+1]), output_deriv)
                             else:
-                                # case where it just depends on next timestep's top layer
+                                # case where it just affects next timestep's top layer
                                 state_derivs[i] = derivative(
                                     self.rnn.activation_function)(pre_activations[t-t2+time_depth][i]) * np.dot(np.transpose(self.rnn.recurrent_weights[i]), state_derivs[i])
                         else:
-                            # middle hidden units will depend on the higher hidden units and maybe the next timestep's units on same layer
+                            # middle hidden units will affect the higher hidden units and maybe the next timestep's units on same layer
                             base_deriv = derivative(self.rnn.activation_function)(
                                 pre_activations[t-t2+time_depth][i]) * np.dot(np.transpose(self.rnn.forward_weights[i+1]), state_derivs[i+1])
                             if t2 != 0:
@@ -151,8 +152,9 @@ class RNNTrainer:
 
             start_index += batch_size
             total_steps += batch_size
-            if start_index >= len(self.outputs) - batch_size or total_steps > 3000:
+            if start_index >= len(self.outputs) - batch_size or total_steps > 40:
                 reset_run()
+                print(self.rnn.sample_text(charset, 0.1, 300))
 
             # Print info to track training progress
             error_list.append(squared_error)
@@ -179,8 +181,10 @@ class RNNTrainer:
 
 if __name__ == '__main__':
 
-    thicc_data = one_hotter.one_hot_text_data(
-        "/Users/matthewspillman/Documents/_12th/Indep Study/Independent-Study-ML/RNN/data/data.c", size=20)
+    onehot_data = one_hotter.one_hot_genome(
+        "/Users/matthewspillman/Documents/_12th/Indep Study/Independent-Study-ML/RNN/data/shakespeare.txt")
+    charset = onehot_data[0]
+    thicc_data = onehot_data[1]
     print(len(thicc_data))
 
     thicc_input = thicc_data
@@ -194,13 +198,13 @@ if __name__ == '__main__':
     #          [0], [1], [1], [0], [1], [0], [0], [0], [1], [0], [0], [1], [1], [0]] * 200
     #outputs = [[inputs[i][0]*inputs[i-1][0]] for i in range(len(inputs))]
 
-    my_rnn = rnn.RNN(input_size, [100, 100], input_size,
+    my_rnn = rnn.RNN(input_size, [200, 200], input_size,
                      activation_function=rnn.sigmoid)
     #my_rnn = pickle.load(open('rnn4.rnn', 'rb'))
 
     rnn_trainer = RNNTrainer(my_rnn, thicc_input, thicc_output)
-    rnn_trainer.train(num_epochs=400000, batch_size=20,
-                      time_depth=20, learning_rate=0.003, momentum=0.96)
+    rnn_trainer.train(num_epochs=10, batch_size=20,
+                      time_depth=20, learning_rate=0.003, momentum=0.9, charset=charset)
 
     rnn_file = open('rnn5.rnn', 'wb')
     pickle.dump(my_rnn, rnn_file)

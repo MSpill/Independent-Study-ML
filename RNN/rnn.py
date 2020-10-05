@@ -1,4 +1,6 @@
 import numpy as np  # for efficient matrix and vector operations
+import math
+import random
 
 
 def relu(x):
@@ -59,6 +61,29 @@ class RNN:
 
     def predict(self):
         return self.values[len(self.values)-1]
+
+    def sample_text(self, charset, temp, length=100):
+        sample_str = ""
+        self.perform_timestep([0] * self.all_sizes[0])
+        for i in range(0, length):
+            raw = self.predict()
+            summed_exp = np.sum(math.e ** (raw * 1.0 / temp))
+            softmax = math.e ** (raw * 1.0 / temp) / summed_exp
+            pick_float = random.uniform(0, 1)
+            pick_index = -1
+            counter = 0.0
+            new_input = []
+            for j in range(0, len(raw)):
+                if pick_float > counter and pick_float <= counter+softmax[j]:
+                    pick_index = j
+                    new_input.append(1)
+                else:
+                    new_input.append(0)
+                counter += softmax[j]
+            sample_str += charset[pick_index]
+            self.perform_timestep(new_input)
+
+        return sample_str
 
 
 if __name__ == '__main__':
