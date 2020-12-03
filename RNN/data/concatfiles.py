@@ -1,5 +1,6 @@
 from pathlib import Path
 
+# to put all linux C code into one big C file
 for path in Path('linux-master').rglob('*.c'):
     print(path)
     fin = open(path, "r")

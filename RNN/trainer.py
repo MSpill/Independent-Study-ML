@@ -2,8 +2,12 @@ import numpy as np
 import random
 import matplotlib.pyplot as plt
 import rnn
-import data.onehottext as one_hotter
+import data.onehotgenome as one_hotter
+import data.onehottext as text_hotter
 import pickle
+
+# takes a function as an argument and returns that function's derivative function
+# I hardcoded each derivative since there were only a few functions that would be arguments
 
 
 def derivative(activation_function):
@@ -14,6 +18,8 @@ def derivative(activation_function):
     elif activation_function is rnn.sigmoid:
         return lambda x: (2.71 ** (-x)) / ((1 + 2.71 ** (-x)) ** 2)
 
+# takes an RNN and some data and trains the RNN on the data
+
 
 class RNNTrainer:
 
@@ -22,12 +28,15 @@ class RNNTrainer:
         self.inputs = inputs
         self.outputs = outputs
 
-    def train(self, num_epochs, batch_size=10, time_depth=20, learning_rate=0.01, momentum=0.9):
+    def train(self, num_epochs, batch_size=10, time_depth=20, learning_rate=0.01, momentum=0.9, charset=[]):
         # an epoch is when you've gone through as many example inputs as there are in the training set
         curr_epoch = 0.0
+
+        # keep track of training metrics for later analysis
         error_list = []
         gradient_mags = [[] for i in range(len(self.rnn.forward_weights))]
 
+        # keep track of previous gradients for the momentum term of gradient descent
         prev_feedforward_derivs = [w * 0 for w in self.rnn.forward_weights]
         prev_recurrent_derivs = [w * 0 for w in self.rnn.recurrent_weights]
         prev_bias_derivs = [b * 0 for b in self.rnn.biases]
@@ -65,13 +74,14 @@ class RNNTrainer:
                     states.pop(0)
                     pre_activations.pop(0)
 
-            # perform backprop through time
-
             squared_error = 0.0
+
             # place to store derivatives, I'm calling them derivs for short
             feedforward_derivs = [w * 0 for w in self.rnn.forward_weights]
             recurrent_derivs = [w * 0 for w in self.rnn.recurrent_weights]
             bias_derivs = [b * 0 for b in self.rnn.biases]
+
+            # perform backpropagation through time
             for t in range(0, len(predictions)):
 
                 # this stores the derivatives of error w/ respect to neuron outputs
@@ -86,13 +96,8 @@ class RNNTrainer:
                 squared_error += np.sum(output_error ** 2) / \
                     len(self.outputs[0]) / len(predictions)
 
-                # output_error = -(target / predictions[t]) - \
-                #    (target - 1.0) / (1.0 - predictions[t])
-
                 # calculate derivs for state-to-output weights and output biases
                 # these only need to be calculated once, they aren't used earlier
-
-                # I have checked this part and I'm confident it's correct
                 output_deriv = output_error * \
                     derivative(self.rnn.activation_function)(
                         pre_activations[t+time_depth][-1])
@@ -101,27 +106,27 @@ class RNNTrainer:
                                                  np.transpose(states[t+time_depth+1][-1]))
 
                 # now calculate derivs for other feedforward/recurrent weights and biases
-                # they were used more than once to produce this timestep's predict, so we need
+                # they were used more than once to produce this timestep's prediction, so we need
                 # to backpropagate through time to sum up all the derivatives
 
                 # backprop through time with respect to this timestep's output
                 for t2 in range(0, min(time_depth, t+total_steps+1)):
                     for i in range(len(state_derivs)-1, -1, -1):
                         if i == len(state_derivs)-1:
-                            # top hidden units will depend on just output or just next top layer
+                            # top hidden units will affect just output or just next top layer
                             if t2 == 0:
-                                # case where it just depends on output
+                                # case where it just affects output
                                 state_derivs[i] = derivative(
                                     self.rnn.activation_function)(pre_activations[t-t2+time_depth][i]) * np.dot(np.transpose(self.rnn.forward_weights[i+1]), output_deriv)
                             else:
-                                # case where it just depends on next timestep's top layer
+                                # case where it just affects next timestep's top layer
                                 state_derivs[i] = derivative(
                                     self.rnn.activation_function)(pre_activations[t-t2+time_depth][i]) * np.dot(np.transpose(self.rnn.recurrent_weights[i]), state_derivs[i])
                         else:
-                            # middle hidden units will depend on the higher hidden units and maybe the next timestep's units on same layer
+                            # middle hidden units will affect the higher hidden units and maybe the next timestep's units on same layer
                             base_deriv = derivative(self.rnn.activation_function)(
                                 pre_activations[t-t2+time_depth][i]) * np.dot(np.transpose(self.rnn.forward_weights[i+1]), state_derivs[i+1])
-                            if t2 != 0:
+                            if t2 != 0:  # they affect next timestep's output
                                 base_deriv += derivative(self.rnn.activation_function)(
                                     pre_activations[t-t2+time_depth][i]) * np.dot(np.transpose(self.rnn.recurrent_weights[i]), state_derivs[i])
                             state_derivs[i] = base_deriv
@@ -149,10 +154,12 @@ class RNNTrainer:
                 self.rnn.biases[i] -= delta
                 prev_bias_derivs[i] = delta
 
+            # restart from a new point in the data every so often
             start_index += batch_size
             total_steps += batch_size
-            if start_index >= len(self.outputs) - batch_size or total_steps > 3000:
+            if start_index >= len(self.outputs) - batch_size or total_steps > 100:
                 reset_run()
+                print(self.rnn.sample_text(charset, 0.1, 100))
 
             # Print info to track training progress
             error_list.append(squared_error)
@@ -161,7 +168,8 @@ class RNNTrainer:
                 # this is mostly to keep plots nice
                 break
                 pass
-        #plt.plot([0.2] * len(error_list))
+
+        # once training is complete, plot gradient magnitudes and error over time
         plt.subplot(2, 1, 1)
         for i in range(len(gradient_mags)):
             plt.plot(gradient_mags[i])
@@ -173,39 +181,42 @@ class RNNTrainer:
         plt.xlabel("training step")
         plt.ylabel("squared error")
         plt.show()
-        # plt.plot(error_list)
-        # plt.show()
+
+        # save error over time to a file
+        error_file = open('error_list3', 'wb')
+        pickle.dump(error_list, error_file)
+        error_file.close()
 
 
 if __name__ == '__main__':
 
-    thicc_data = one_hotter.one_hot_text_data(
-        "/Users/matthewspillman/Documents/_12th/Indep Study/Independent-Study-ML/RNN/data/data.c", size=20)
-    print(len(thicc_data))
+    # load data
+    onehot_data = one_hotter.one_hot_genome(
+        "/Users/matthewspillman/Documents/_12th/Indep Study/Independent-Study-ML/RNN/data/genome.fna")
+    charset = onehot_data[0]
+    dataset = onehot_data[1]
+    print(len(dataset))
 
-    thicc_input = thicc_data
-    thicc_output = [thicc_data[n+1] for n in range(0, len(thicc_input)-1)]
+    # split data into input and output
+    input_data = dataset
+    output_data = [dataset[n+1] for n in range(0, len(input_data)-1)]
     # make them the same size, one noisy target is fine
-    thicc_output.append(thicc_output[0])
+    output_data.append(output_data[0])
+    input_size = len(input_data[0])
 
-    input_size = len(thicc_input[0])
+    # if creating an RNN from scratch:
+    # my_rnn = rnn.RNN(input_size, [500], input_size,
+    #                 activation_function=rnn.sigmoid)
 
-    # inputs = [[0], [0], [1], [0], [1], [1], [1], [0], [0], [1], [0], [1], [0], [1], [1],
-    #          [0], [1], [1], [0], [1], [0], [0], [0], [1], [0], [0], [1], [1], [0]] * 200
-    #outputs = [[inputs[i][0]*inputs[i-1][0]] for i in range(len(inputs))]
+    # if loading a saved RNN from a file:
+    my_rnn = pickle.load(open('rnn9.rnn', 'rb'))
 
-    my_rnn = rnn.RNN(input_size, [100, 100], input_size,
-                     activation_function=rnn.sigmoid)
-    #my_rnn = pickle.load(open('rnn4.rnn', 'rb'))
+    # train the RNN
+    rnn_trainer = RNNTrainer(my_rnn, input_data, output_data)
+    rnn_trainer.train(num_epochs=0.5, batch_size=100,
+                      time_depth=20, learning_rate=0.007, momentum=0.9, charset=charset)
 
-    rnn_trainer = RNNTrainer(my_rnn, thicc_input, thicc_output)
-    rnn_trainer.train(num_epochs=400000, batch_size=20,
-                      time_depth=20, learning_rate=0.003, momentum=0.96)
-
-    rnn_file = open('rnn5.rnn', 'wb')
+    # save the RNN to a file
+    rnn_file = open('rnn10.rnn', 'wb')
     pickle.dump(my_rnn, rnn_file)
     rnn_file.close()
-
-    for i in range(100):
-        my_rnn.perform_timestep(thicc_input[i])
-        print(my_rnn.predict())
