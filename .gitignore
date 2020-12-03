@@ -4,6 +4,7 @@ __pycache__
 *.jpg
 *.MOV
 *.mp4
+*.gif
 *.rnn
 *.zip
 *.png
