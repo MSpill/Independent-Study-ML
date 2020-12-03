@@ -152,9 +152,9 @@ class RNNTrainer:
 
             start_index += batch_size
             total_steps += batch_size
-            if start_index >= len(self.outputs) - batch_size or total_steps > 40:
+            if start_index >= len(self.outputs) - batch_size or total_steps > 100:
                 reset_run()
-                print(self.rnn.sample_text(charset, 0.1, 300))
+                print(self.rnn.sample_text(charset, 0.1, 100))
 
             # Print info to track training progress
             error_list.append(squared_error)
@@ -170,6 +170,10 @@ class RNNTrainer:
         plt.legend([0, 1, 2, 3])
         plt.ylabel("avg. magnitude of weight gradient")
 
+        error_file = open('error_list3', 'wb')
+        pickle.dump(error_list, error_file)
+        error_file.close()
+
         plt.subplot(2, 1, 2)
         plt.plot(error_list)
         plt.xlabel("training step")
@@ -182,7 +186,7 @@ class RNNTrainer:
 if __name__ == '__main__':
 
     onehot_data = one_hotter.one_hot_genome(
-        "/Users/matthewspillman/Documents/_12th/Indep Study/Independent-Study-ML/RNN/data/shakespeare.txt")
+        "/Users/matthewspillman/Documents/_12th/Indep Study/Independent-Study-ML/RNN/data/genome.fna")
     charset = onehot_data[0]
     thicc_data = onehot_data[1]
     print(len(thicc_data))
@@ -198,15 +202,15 @@ if __name__ == '__main__':
     #          [0], [1], [1], [0], [1], [0], [0], [0], [1], [0], [0], [1], [1], [0]] * 200
     #outputs = [[inputs[i][0]*inputs[i-1][0]] for i in range(len(inputs))]
 
-    my_rnn = rnn.RNN(input_size, [200, 200], input_size,
-                     activation_function=rnn.sigmoid)
-    #my_rnn = pickle.load(open('rnn4.rnn', 'rb'))
+    # my_rnn = rnn.RNN(input_size, [500], input_size,
+    #                 activation_function=rnn.sigmoid)
+    my_rnn = pickle.load(open('rnn9.rnn', 'rb'))
 
     rnn_trainer = RNNTrainer(my_rnn, thicc_input, thicc_output)
-    rnn_trainer.train(num_epochs=10, batch_size=20,
-                      time_depth=20, learning_rate=0.003, momentum=0.9, charset=charset)
+    rnn_trainer.train(num_epochs=0.5, batch_size=100,
+                      time_depth=20, learning_rate=0.007, momentum=0.9, charset=charset)
 
-    rnn_file = open('rnn5.rnn', 'wb')
+    rnn_file = open('rnn10.rnn', 'wb')
     pickle.dump(my_rnn, rnn_file)
     rnn_file.close()
 

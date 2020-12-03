@@ -3,7 +3,7 @@ from data.onehottext import one_hot_str
 
 def one_hot_genome(path):
     data_file = open(path, "rb")
-    data_bytes = data_file.read(1000000)
+    data_bytes = data_file.read(200000)
     data_str = data_bytes.decode("utf-8").upper()
     filtered_str = ""
     for i in range(0, len(data_str)):
