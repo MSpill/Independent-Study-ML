@@ -1,5 +1,7 @@
 from data.onehottext import one_hot_str
 
+# reads genome data (.fna) by byte and feeds into one-hotter
+
 
 def one_hot_genome(path):
     data_file = open(path, "rb")

@@ -2,6 +2,9 @@ import numpy as np  # for efficient matrix and vector operations
 import math
 import random
 
+# defining some activation functions for neurons
+# sigmoid ended up being the only one which works with RNNs
+
 
 def relu(x):
     return np.piecewise(x, [x < 0, x >= 0], [lambda a: 0, lambda a: a])
@@ -23,6 +26,7 @@ class RNN:
 
         # first in list will be inputs, last will be outputs, between is hidden state
         self.values = [np.zeros((i, 1)) for i in self.all_sizes]
+
         # (for training) store what the input to each layer was before applying activ. function
         self.pre_activations = [np.zeros((i, 1)) for i in self.layer_sizes]
 
@@ -46,7 +50,7 @@ class RNN:
             layer = layer * 0
 
     def perform_timestep(self, input_vector):
-        # makes it a (x, 1) shape matrix
+        # make input a (x, 1) shape matrix
         self.values[0] = np.transpose(np.array([input_vector]))
         for i in range(1, self.all_sizes.__len__()):
             # calculate weighted sum in from previous layer or input
@@ -62,6 +66,10 @@ class RNN:
     def predict(self):
         return self.values[len(self.values)-1]
 
+    # if this RNN was trained on a list of one-hot vectors representing characters,
+    # it can probabalistically generate new text (its own prediction is fed in as
+    # the next timestep's input)
+    # temp controls how random the selection is
     def sample_text(self, charset, temp, length=100):
         sample_str = ""
         self.perform_timestep([0] * self.all_sizes[0])
