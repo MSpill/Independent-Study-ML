@@ -1,6 +1,6 @@
-import numpy as np  # for efficient matrix and vector operations
-import math
 import random
+import math
+import numpy as np  # for efficient matrix and vector operations
 
 # defining some activation functions for neurons
 # sigmoid ended up being the only one which works with RNNs
@@ -36,7 +36,8 @@ class RNN:
 
         # weight matrices
         self.forward_weights = [np.random.normal(
-            0, 0.01, (self.all_sizes[i+1], self.all_sizes[i])) for i in range(0, self.all_sizes.__len__() - 1)]
+            0, 0.01, (self.all_sizes[i+1], self.all_sizes[i])) for i in
+            range(0, self.all_sizes.__len__() - 1)]
 
         self.recurrent_weights = [np.random.normal(
             0, 0.01, (i, i)) for i in state_sizes]
